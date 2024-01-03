@@ -1,0 +1,233 @@
+import network
+import socket
+from time import sleep
+import machine
+from machine import Pin, PWM
+import utime
+import random
+
+ssid = 'Galaxy A53 5G 01C3'
+password = 'Miguel123'
+
+#Definicion de pines
+#Motores
+motor1=Pin(10,Pin.OUT)
+motor2=Pin(11,Pin.OUT)
+motor3=Pin(12,Pin.OUT)
+motor4=Pin(13,Pin.OUT)
+#Enable pins and PWM object (creo que no hace falta)
+enable1=PWM(Pin(6))
+enable2=PWM(Pin(7))
+#Sensores linea
+right_ir = Pin(2, Pin.IN)
+left_ir = Pin(3, Pin.IN)
+# Defining  Trigger and Echo pins (distancia)
+trigger = Pin(4, Pin.OUT)
+echo = Pin(5, Pin.IN)
+
+# Defining frequency for enable pins
+enable1.freq(1000)
+enable2.freq(1000)
+
+# Setting maximum duty cycle for maximum speed
+enable1.duty_u16(65025)
+enable2.duty_u16(65025)
+
+seguir = False
+evitar = False
+
+# Forward
+def forward():
+    motor1.low()
+    motor2.high()
+    motor3.high()
+    motor4.low()
+
+# Backward
+def backward():
+    motor1.high()
+    motor2.low()
+    motor3.low()
+    motor4.high()
+    
+#Turn Right
+def left():
+    motor1.low()
+    motor2.high()
+    motor3.low()
+    motor4.high()
+    
+#Turn Left
+def right():
+    motor1.high()
+    motor2.low()
+    motor3.high()
+    motor4.low()
+  
+#Stop
+def stop():
+    motor1.low()
+    motor2.low()
+    motor3.low()
+    motor4.low()
+
+def follow_line():
+    right_val = right_ir.value()
+    left_val = left_ir.value()
+
+    print(str(right_val) + "-" + str(left_val))
+
+    if right_val == 0 and left_val == 0:
+        forward()
+        sleep(0.5)
+    elif right_val == 1 and left_val == 0:
+        right()
+        sleep(0.5)
+    elif right_val == 0 and left_val == 1:
+        left()
+        sleep(0.5)
+    else:
+        stop()
+        sleep(0.5)
+
+def obstacle_avoid():
+    trigger.low()
+    utime.sleep_us(2)
+    trigger.high()
+    utime.sleep_us(5)
+    trigger.low()
+    while echo.value() == 0:
+        signaloff = utime.ticks_us()
+    while echo.value() == 1:
+        signalon = utime.ticks_us()
+    timepassed = signalon - signaloff
+    dist = (timepassed * 0.0343) / 2
+    print(dist)
+            
+    if dist < 35:
+        numero_aleatorio = random.uniform(0, 2)
+        print("Girar:", numero_aleatorio,"segundos")
+        numero = random.randint(1, 2)
+        if numero == 1:
+            right()
+            print('de')
+            sleep(numero_aleatorio)
+            stop()
+            sleep(0.1)
+        else:
+            left()
+            print('iz')
+            sleep(numero_aleatorio)
+            stop()
+            sleep(0.1)
+    else:
+        forward()
+        print('alante')
+        sleep(0.1)
+
+
+def conectar():
+    red = network.WLAN(network.STA_IF)
+    red.active(True)
+    red.connect(ssid, password)
+    while red.isconnected() == False:
+        print('Conectando ...')
+        sleep(1)
+    ip = red.ifconfig()[0]
+    print(f'Conectado con IP: {ip}')
+    return ip
+    
+def open_socket(ip):
+    address = (ip, 80)
+    connection = socket.socket()
+    connection.bind(address)
+    connection.listen(1)
+    return connection
+
+def pagina_web():
+    html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+            </head>
+            <body>
+            <center>
+            <form action="./forward">
+            <input type="submit" value="Adelante" style="background-color: #04AA; border-radius: 15px; height:120px; width:120px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"  />
+            </form>
+            <table><tr>
+            <td><form action="./left">
+            <input type="submit" value="Izquierda" style="background-color: #04AA; border-radius: 15px; height:120px; width:120px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"/>
+            </form></td>
+            <td><form action="./stop">
+            <input type="submit" value="Parar" style="background-color: #FF0000; border-radius: 50px; height:120px; width:120px; border: none; color: white; padding: 16px 24px; margin: 4px 2px" />
+            </form></td>
+            <td><form action="./right">
+            <input type="submit" value="Derecha" style="background-color: #04AA; border-radius: 15px; height:120px; width:120px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"/>
+            </form></td>
+            </tr></table>
+            <form action="./backward">
+            <input type="submit" value="Atras" style="background-color: #04AA; border-radius: 15px; height:120px; width:120px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"/>
+            </form>
+            <form action="./follow" style="display: inline-block;">
+            <input type="submit" value="Seguir Linea" style="background-color: #4CAF50; border-radius: 15px; height:120px; width:140px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"/>
+            </form>
+            <form action="./avoid" style="display: inline-block;">
+            <input type="submit" value="Evitar Obstaculos" style="background-color: #4CAF50; border-radius: 15px; height:120px; width:150px; border: none; color: white; padding: 16px 24px; margin: 4px 2px"/>
+            </form>
+            </body>
+            </html>
+            """
+    return str(html)
+
+def serve(connection):
+    while True:
+        cliente = connection.accept()[0]
+        peticion = cliente.recv(1024)
+        peticion = str(peticion)
+        try:
+            peticion = peticion.split()[1]
+        except IndexError:
+            pass
+        if peticion == '/forward?':
+            evitar = False
+            seguir = False
+            forward()
+        elif peticion == '/left?':
+            evitar = False
+            seguir = False
+            left()
+        elif peticion == '/stop?':
+            evitar = False
+            seguir = False
+            stop()
+        elif peticion == '/right?':   
+            evitar = False
+            seguir = False
+            right()
+        elif peticion == '/backward?':
+            evitar = False
+            seguir = False
+            backward()
+        elif peticion == '/avoid?': 
+            evitar = True
+            seguir = False
+            while evitar:
+                obstacle_avoid()
+        elif peticion == '/follow?':
+            seguir = True
+            evitar = False
+            while seguir:
+                follow_line()
+
+        html = pagina_web()
+        cliente.send(html)
+        cliente.close()
+ 
+try:
+    ip = conectar()
+    connection = open_socket(ip)
+    serve(connection)
+except KeyboardInterrupt:
+    machine.reset() 
+    
