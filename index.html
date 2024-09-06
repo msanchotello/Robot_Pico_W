@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pico W</title>
+    <style>
+        body { 
+    font-family: Arial, sans-serif; 
+    text-align: center; 
+    background-color: #f0f0f0; 
+    margin: 0; 
+    padding: 0; 
+}
+.container { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    height: 100vh; 
+    padding: 20px; 
+    box-sizing: border-box; 
+}
+.controls { 
+    display: flex; 
+    flex-direction: row;  /* Mantén en fila */
+    justify-content: space-between; 
+    align-items: center;
+    width: 100%; 
+    margin: 20px 0; 
+    flex-wrap: nowrap;  /* No permite que los elementos se envuelvan a la siguiente línea */
+    overflow-x: auto;  /* Agrega desplazamiento horizontal si es necesario */
+}
+.control-section { 
+    text-align: center; 
+    margin: 10px; 
+    flex: 1; /* Asegura que los elementos tengan el mismo tamaño y se ajusten */
+    min-width: 200px; /* Ancho mínimo para mantener la visibilidad en pantallas pequeñas */
+}
+.video-stream { 
+    border: 2px solid #000; 
+    width: 640px; 
+    height: 480px; 
+    max-width: 100%; /* Se ajusta en pantallas pequeñas */
+}
+.camera-off-message {
+            width: 640px; 
+            height: 480px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #000; 
+            font-size: 1.5em;
+            color: #ff0000; 
+            background-color: #f0f0f0; 
+            margin: 0 auto; 
+        }
+.distance { 
+    font-size: 1.5em; 
+    margin-bottom: 20px; 
+}
+.buttons { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    flex-wrap: wrap;  /* Ajusta los botones en pantallas pequeñas */
+}
+.buttons button { 
+    margin: 5px; 
+    padding: 10px 10px; /* Reduce tamaño de botones en pantallas pequeñas */
+    font-size: 1em;  /* Reduce el tamaño de la fuente */
+}
+.slider-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 20px 0;
+}
+.slider { 
+    width: 100%; 
+}
+@media (max-width: 600px) {  /* Para pantallas de menos de 600px */
+    .container {
+        padding: 10px;
+    }
+    .controls {
+        width: 100%; /* Asegura que la fila ocupe todo el ancho */
+        overflow-x: auto; /* Permite desplazamiento horizontal si es necesario */
+        justify-content: flex-start; /* Alinear elementos al inicio */
+    }
+    .control-section {
+        margin: 5px; /* Reducir el margen entre secciones */
+        min-width: 150px; /* Ancho mínimo para que quepan más elementos */
+    }
+    .buttons button { 
+        padding: 8px 10px; /* Reducir el padding de los botones */
+        font-size: 0.9em;  /* Reducir el tamaño del texto */
+    }
+    .video-stream {
+        width: 100%;  /* Asegura que el video se ajuste al ancho disponible */
+        height: auto;  /* Mantiene la proporción del video */
+        max-width: 300px; /* Tamaño máximo del video en pantallas pequeñas */
+    }
+    .joystick {
+        width: 100px;  /* Reducir el tamaño del joystick */
+        height: 100px;
+    }
+    .joystick-handle {
+        width: 40px;  /* Reducir el tamaño del mango del joystick */
+        height: 40px;
+    }
+    h1, h3 {
+        font-size: 1em;  /* Reducir el tamaño de los títulos */
+    }
+    .distance {
+        font-size: 1em;  /* Reducir el tamaño del texto de distancia */
+    }
+}
+
+:root {
+    --color-green: #00a878;
+    --color-red: #fe5e41;
+    --color-button: #fdffff;
+    --color-black: #000;
+}
+.switch-button {
+    display: inline-block;
+    margin-top: 10px;
+}
+.switch-button .switch-button__checkbox {
+    display: none;
+}
+.switch-button .switch-button__label {
+    background-color: var(--color-red);
+    width: 5rem;
+    height: 3rem;
+    border-radius: 3rem;
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+}
+.switch-button .switch-button__label:before {
+    transition: .2s;
+    display: block;
+    position: absolute;
+    width: 3rem;
+    height: 3rem;
+    background-color: var(--color-button);
+    content: 'OFF';
+    color: var(--color-black);
+    text-align: center;
+    line-height: 3rem;
+    border-radius: 50%;
+    box-shadow: inset 0px 0px 0px 1px var(--color-black);
+}
+.switch-button .switch-button__checkbox:checked + .switch-button__label {
+    background-color: var(--color-green);
+}
+.switch-button .switch-button__checkbox:checked + .switch-button__label:before {
+    transform: translateX(2rem);
+    content: 'ON';
+}
+.joystick {
+    width: 150px;
+    height: 150px;
+    border: 2px solid #000;
+    border-radius: 50%;
+    position: relative;
+    touch-action: none;
+    margin: 20px auto;
+}
+.joystick-handle {
+    width: 60px;
+    height: 60px;
+    background-color: #666;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    touch-action: none;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="text-align:center;">
+            <p>Temperatura: <span id="temperature">TemperatureLoading</span> °C</p>
+            <p>Distancia: <span id="distance">DistanceLoading</span></p>
+        </div>
+        <div class="controls">
+            <div class="control-section">
+                <h3>Camera</h3>
+                <div class="buttons">
+                    <button onclick="moveCamera('cam_left')">◄</button>
+                    <button onclick="moveCamera('cam_center')">CENTER</button>
+                    <button onclick="moveCamera('cam_right')">►</button>
+                </div>
+                <div class="switch-button">
+                    <input type="checkbox" name="switch-button" id="cameraSwitch" class="switch-button__checkbox" checked onclick="toggleCamera()">
+                    <label for="cameraSwitch" class="switch-button__label"></label>
+                </div>
+            </div>
+             <div id="cameraContainer">
+                <iframe class="video-stream" src="http://192.168.157.61/stream"></iframe>
+            </div>
+
+
+            <div class="control-section">
+                <h3>Motor</h3>
+                <div class="joystick" id="joystick">
+                    <div class="joystick-handle" id="joystickHandle"></div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Autopilot</h3>
+                    <div class="switch-button">
+                        <input type="checkbox" name="switch-button" id="autopilotSwitch" class="switch-button__checkbox" onclick="toggleAutopilot()">
+                        <label for="autopilotSwitch" class="switch-button__label"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slider-container">
+            <input type="range" min="0" max="1023" value="600" class="slider" id="speedSlider">
+            <p>Velocidad: <span id="speedValue">600</span></p>
+        </div>
+    </div>
+    <script>
+        function moveCamera(direction) {
+            fetch(`/${direction}`);
+        }
+        function toggleCamera() {
+            const checkbox = document.getElementById('cameraSwitch');
+            const cameraContainer = document.getElementById('cameraContainer');
+
+            if (checkbox.checked) {
+                fetch(`/camera?state=on`)
+                    .then(response => {
+                        if (response.ok) {
+                            // Mostrar el iframe de la cámara
+                            cameraContainer.innerHTML = '<iframe class="video-stream" src="http://192.168.157.61/stream"></iframe>';
+                        }
+                    })
+                    .catch(error => console.error('Error al encender la cámara:', error));
+            } else {
+                fetch(`/camera?state=off`)
+                    .then(response => {
+                        if (response.ok) {
+                            // Mostrar el mensaje de "camera off"
+                            cameraContainer.innerHTML = '<div class="camera-off-message">Camera Off</div>';
+                        }
+                    })
+                    .catch(error => console.error('Error al apagar la cámara:', error));
+            }
+        }
+        
+        function toggleCameraKeyboard() {
+            const checkbox = document.getElementById('cameraSwitch');
+            checkbox.checked = !checkbox.checked;
+            toggleCamera();
+        }
+        const slider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        slider.oninput = function() {
+            speedValue.innerText = this.value;
+            fetch(`/speed?value=${this.value}`);
+        }
+
+        const joystick = document.getElementById('joystick');
+        const joystickHandle = document.getElementById('joystickHandle');
+        let joystickActive = false;
+
+        joystick.addEventListener('mousedown', startDrag);
+        joystick.addEventListener('touchstart', startDrag);
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('touchmove', handleDrag);
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(event) {
+            joystickActive = true;
+        }
+
+        function handleDrag(event) {
+            if (!joystickActive) return;
+            event.preventDefault();
+
+            const rect = joystick.getBoundingClientRect();
+            const offsetX = (event.touches ? event.touches[0].clientX : event.clientX) - rect.left - rect.width / 2;
+            const offsetY = (event.touches ? event.touches[0].clientY : event.clientY) - rect.top - rect.height / 2;
+            const angle = Math.atan2(offsetY, offsetX);
+
+            const distance = Math.min(Math.sqrt(offsetX ** 2 + offsetY ** 2), rect.width / 2 - 30); // Adjusted to keep joystick handle within bounds
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+
+            joystickHandle.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+
+            let direction = '';
+            if (distance > rect.width / 4) {
+                if (angle >= -Math.PI / 4 && angle <= Math.PI / 4) {
+                    direction = 'motor_right';
+                } else if (angle >= Math.PI / 4 && angle <= 3 * Math.PI / 4) {
+                    direction = 'motor_backward';
+                } else if (angle <= -Math.PI / 4 && angle >= -3 * Math.PI / 4) {
+                    direction = 'motor_forward';
+                } else {
+                    direction = 'motor_left';
+                }
+            } else {
+                direction = 'motor_stop';
+            }
+
+            fetch(`/${direction}`);
+        }
+
+        function endDrag(event) {
+            joystickActive = false;
+            joystickHandle.style.transform = 'translate(-50%, -50%)';
+            fetch(`/motor_stop`);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            switch(event.key) {
+                case 'c':
+                    toggleCameraKeyboard();
+                    break;
+                case 'a':
+                    moveCamera('cam_left');
+                    break;
+                case 's':
+                    moveCamera('cam_center');
+                    break;
+                case 'd':
+                    moveCamera('cam_right');
+                    break;
+                case 'ArrowUp':
+                    fetch(`/motor_forward`);
+                    break;
+                case 'ArrowDown':
+                    fetch(`/motor_backward`);
+                    break;
+                case 'ArrowLeft':
+                    fetch(`/motor_left`);
+                    break;
+                case 'ArrowRight':
+                    fetch(`/motor_right`);
+                    break;
+                case ' ':  
+                    fetch(`/motor_stop`);  
+                    break;
+                case 'm':  
+                    toggleAutopilotKeyboard();  
+                    break;
+                default:
+                    break;
+            }
+        });
+        
+        // Función para activar/desactivar el Autopilot
+    function toggleAutopilot() {
+        const checkbox = document.getElementById('autopilotSwitch');
+        if (checkbox.checked) {
+            fetch('/autopilot?state=on')  // Activa el modo Autopilot
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Autopilot activado');
+                    } else {
+                        console.error('Error al activar Autopilot');
+                    }
+                })
+                .catch(error => console.error('Error en la solicitud de Autopilot:', error));
+        } else {
+            fetch('/autopilot?state=off')  // Desactiva el modo Autopilot
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Autopilot desactivado');
+                    } else {
+                        console.error('Error al desactivar Autopilot');
+                    }
+                })
+                .catch(error => console.error('Error en la solicitud de Autopilot:', error));
+        }
+    }
+    
+    function toggleAutopilotKeyboard() {
+        const checkbox = document.getElementById('autopilotSwitch');
+        checkbox.checked = !checkbox.checked;  // Cambiar el estado del checkbox
+        toggleAutopilot();  // Llamar a la función para manejar el cambio
+    }
+        
+            // Función para actualizar temperatura y distancia
+    function updateSensorData() {
+        fetch('/sensor_data')  // Ruta que devuelve los datos de temperatura y distancia
+            .then(response => response.json())  // Esperamos una respuesta en formato JSON
+            .then(data => {
+                // Actualizar los valores en la página
+                document.getElementById('temperature').innerText = data.temperature.toFixed(2);
+                document.getElementById('distance').innerText = data.distance.toFixed(2) + ' cm';
+            })
+            .catch(error => console.error('Error al obtener datos de sensores:', error));
+    }
+
+    // Llamar a la función de actualización cada 2 segundos
+    //setInterval(updateSensorData, 4000);  // Actualiza cada 2 segundos (2000 ms)
+    </script>
+</body>
+</html>
+
